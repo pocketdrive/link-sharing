@@ -5,48 +5,91 @@ import { $WebSocket, WebSocketSendMode } from 'angular2-websocket/angular2-webso
 import uuid from 'uuid/v4';
 
 import { centralServer, centralServerWSPort } from '../../config';
+import PDPeer from './pd-peer';
+import * as wsm from './ws-messages';
 
 export class Communicator {
     ws: $WebSocket;
-    connectedToServer: boolean = false;
     registeredDevice: boolean = false;
-    connectedToPD: boolean = false;
+    pdPeer: PDPeer = null;
+    username: string = `user-${uuid().toString()}`;
+    deviceId: string = `dev-id-${uuid().toString()}`;
 
-    constructor() {
+    constructor(private targetUsername, private targetDeviceId) {
         this.ws = new $WebSocket(`ws://${centralServer}:${centralServerWSPort}`);
         this.ws.onMessage(
             (msg: MessageEvent) => {
-                this.onMessage(msg.data);
+                this._onMessage(msg.data);
             },
             {autoApply: false}
         );
         this.ws.setSend4Mode(WebSocketSendMode.Direct);
     }
 
-    onMessage(msg: string) {
+    async _onMessage(msg: string) {
         const obj = JSON.parse(msg);
         switch (obj.type) {
-            case 'registerDevice':
+            case wsm.registerDevice:
                 if (obj.success) {
-
+                    this.registeredDevice = true;
+                    let signal = await this.initPeerAndGetSignal();
+                    this._sendOfferToPeer(signal);
                 }
                 break;
+            case wsm.acceptOffer:
+                this.signalSelfPeer(obj.answer);
+                break;
         }
-        console.log('message: ' + obj);
+    }
+
+    signalSelfPeer(signals) {
+        signals.forEach((signal) => {
+            this.pdPeer.setSignal(signal)
+        });
     }
 
     registerOnServer() {
         const msg = {
-            type: 'registerDevice',
-            data: {username: `user-${uuid().toString()}`, deviceId: `dev-id-${uuid().toString()}`}
+            type: wsm.registerDevice,
+            data: {username: this.username, deviceId: this.deviceId}
         };
 
-        this.sendMessage(
+        this._sendMessageToServer(
             JSON.stringify(msg)
         );
     }
 
-    sendMessage(msg: string) {
+    async initPeerAndGetSignal() {
+        this.pdPeer = new PDPeer();
+        return await this.pdPeer.getSignal();
+    }
+
+    _sendOfferToPeer(signal) {
+        const msg = {
+            type: wsm.connectionOffer,
+            data: {
+                username: this.targetUsername,
+                deviceId: this.targetDeviceId,
+                offer: signal,
+                fromUsername: this.username,
+                fromDeviceId: this.deviceId
+            }
+        };
+
+        this._sendMessageToServer(
+            JSON.stringify(msg)
+        );
+    }
+
+    _sendMessageToServer(msg: string) {
         this.ws.send(msg);
+    }
+
+    isConnectedP2P() {
+        return this.pdPeer && this.pdPeer.isConnected();
+    }
+
+    getPeerObject() {
+        return this.pdPeer;
     }
 }

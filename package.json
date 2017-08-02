@@ -24,6 +24,7 @@
     "angular2-websocket": "^0.9.3",
     "core-js": "^2.4.1",
     "rxjs": "^5.1.0",
+    "simple-peer": "^8.1.1",
     "uuid": "^3.1.0",
     "zone.js": "^0.8.4"
   },
@@ -33,6 +34,7 @@
     "@angular/language-service": "^4.0.0",
     "@types/jasmine": "2.5.45",
     "@types/node": "~6.0.60",
+    "@types/simple-peer": "^6.1.2",
     "codelyzer": "~3.0.1",
     "jasmine-core": "~2.6.2",
     "jasmine-spec-reporter": "~4.1.0",
