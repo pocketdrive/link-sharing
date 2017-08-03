@@ -34,6 +34,7 @@ export class AppComponent implements OnInit {
             const pd = this.communicator.getPeerObject();
             const message = {
                 type: 'linkShare',
+                username: params[0],
                 fileId: params[2]
             };
             pd.receiveBuffer(this.handlePeerMessage());
@@ -77,6 +78,8 @@ export class AppComponent implements OnInit {
         return function (messageBuffer, messageInfo) {
             if (messageInfo.type === 'file') {
                 console.log('received file', JSON.stringify(messageInfo));
+            } else if (messageInfo.type === 'json') {
+                console.log('' + messageBuffer.toString());
             }
         }
     }
