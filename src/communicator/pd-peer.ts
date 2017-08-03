@@ -78,7 +78,7 @@ export default class PDPeer {
         this.peerObj.on('data', (data) => {
             try {
                 let obj = JSON.parse(data);
-                if (obj.type === 'pong') {
+                if (obj.type === 'ping') {
                     this.pingReceived = true;
                 }
                 // pass down the message
