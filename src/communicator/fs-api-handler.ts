@@ -12,52 +12,36 @@ export default class FSAPIHandler {
     bufferWatcher;
     bufferWatcherStarted;
     recivedSofar = 0;
+    requestFileSystem;
+    filename;
+    fileCreated = false;
+    complete = false;
 
     constructor(fileInfo) {
         this.fileInfo = fileInfo;
         this.dataBuffer = [];
         this.bufferWatcherStarted = false;
+        this.filename = this.fileInfo.data.fileName + Math.round(Math.random() * 100000000) + '.mp3';
 
+        // this.requestFileSystem = self['webkitRequestFileSystemSync'] || self['requestFileSystemSync'];
         window['requestFileSystem'] = window['requestFileSystem'] || window['webkitRequestFileSystem'];
         window['requestFileSystem']('TEMPORARY', this.fileInfo.info.size, (fs) => {
             this.fs = fs;
             console.log('Opened ' + fs.name);
-            this.fs.root.getFile(this.fileInfo.data.fileName, {create: false}, (fileEntry) => {
-
-                // Create a FileWriter object for our FileEntry.
-                fileEntry.createWriter((fileWriter) => {
-                    this.fileWriter = fileWriter;
-                }, (error) => {
-                    console.log('Error', error)
-                });
-
-            }, (error) => {
-                console.log('Error', error)
-            });
         }, (e) => {
             console.log(e);
         });
-
-        this._initSequence();
-    }
-
-    async _initSequence() {
-        // wait for fs
-        if (!await this._waitForFS()) {
-            console.log('Failed to load File System API');
-            return;
-        }
-        await this._createFile();
     }
 
     async _createFile() {
         return new Promise((resolve) => {
-            // this.fs.root.getFile(this.fileInfo.data.fileName, {create: true, exclusive: true}, (fileEntry) => {
-            //     console.log(fileEntry);
-                resolve()
-            // }, (error) => {
-            //     console.log('Error', error)
-            // });
+            this.fs.root.getFile(this.filename, {create: true, exclusive: true}, (fileEntry) => {
+                console.log(fileEntry);
+                console.log('creating the bloody file')
+                resolve();
+            }, (error) => {
+                console.log('Error', error)
+            });
         });
     }
 
@@ -69,48 +53,85 @@ export default class FSAPIHandler {
     }
 
     _flushBufferToFile(dataChunk) {
-        // dataChunk = '1234567';
-        this.recivedSofar+= dataChunk.byteLength;
-        console.log('received data: ', this.recivedSofar)
+        return new Promise((resolve) => {
+            this.fs.root.getFile(this.filename, {create: false}, (fileEntry) => {
 
-        this.fileWriter.seek(this.fileWriter.length); // Start write position at EOF.
+                // Create a FileWriter object for our FileEntry.
+                fileEntry.createWriter((fileWriter) => {
+                    if (dataChunk === 'end') {
+                        this.complete = true;
+                        console.log('COMPLETE')
+                        resolve();
+                        return;
+                    }
+                    fileWriter.seek(fileWriter.length); // Start write position at EOF.
+                    console.log()
+                    // Create a new Blob and write it to the file.
+                    let blob = new Blob([dataChunk], {type: 'application/octet-stream'});
 
-        // Create a new Blob and write it to the file.
-        let blob = new Blob([dataChunk], {type: 'application/octet-stream'});
+                    fileWriter.write(blob);
+                    this.recivedSofar += dataChunk.byteLength;
+                    // console.log('wrote data: ', this.recivedSofar);
+                    resolve();
+                }, (error) => {
+                    console.log('Error', error)
+                });
 
-        this.fileWriter.write(blob);
+            }, (error) => {
+                console.log('Error', error)
+            });
+        });
 
     }
 
 
-    _initiateBufferWatcher() {
+    async _initiateBufferWatcher() {
         this.bufferWatcherStarted = true;
         let bufferedItem;
-        this.bufferWatcher = setInterval(() => {
-            while (this.dataBuffer.length > 0) {
+        if (this.fs === null) {
+            await this._waitForFS();
+        }
+        // create file if not
+        if (!this.fileCreated) {
+            this.fileCreated = true;
+            await this._createFile();
+        }
+        while (this.dataBuffer.length > 0 || !this.complete) {
+            if (this.dataBuffer.length > 0) {
                 bufferedItem = this.dataBuffer.shift();
-                this._flushBufferToFile(bufferedItem);
+                await this._flushBufferToFile(bufferedItem);
+                console.log('wrote to buffer')
             }
-        }, 10);
-
+        }
+        console.log('operation complete')
     }
 
-    readFile() {
-        this.fs.root.getFile(this.fileInfo.data.fileName, {}, (fileEntry) => {
+    async readFile() {
+        await this._waitForCompletion();
+        this.fs.root.getFile(this.filename, {}, (fileEntry) => {
 
             // Get a File object representing the file,
             // then use FileReader to read its contents.
             fileEntry.file((file) => {
-                var reader = new FileReader();
-
+                const reader = new FileReader();
                 reader.onloadend = function (e) {
-                    console.log(this.result);
+                    console.log(e);
 
                 };
-
+                console.log(file)
                 reader.readAsArrayBuffer(file);
             });
 
+        });
+    }
+
+    async _waitForCompletion() {
+        return await new Promise((resolve) => {
+            let int = setInterval(() => {
+                if (this.complete) {
+                    resolve(true);
+                }
+            }, 1000);
         });
     }
 
@@ -126,6 +147,5 @@ export default class FSAPIHandler {
                 attempts++;
             }, 10);
         });
-
     }
 }

@@ -181,10 +181,12 @@ export default class PDPeer {
                 this.dataBuffer = new Buffer(0)
                 this.RECEIVEDSIZE=0;
                 this.fileManagerAPIObj = new FSAPIHandler(this.receiveInfo);
+                console.log('creating object')
             } else if (obj.eof) {
                 this.currentReceiveProgress = 0;
                 this.callBacks.onMessage(this.dataBuffer, this.receiveInfo);
-                this.fileManagerAPIObj.readFile()
+                this.fileManagerAPIObj.appendToFile('end');
+                this.fileManagerAPIObj.readFile();
             } else {
                 // this.currentReceiveProgress = (this.dataBuffer.byteLength / this.receiveInfo.info.size) * 100;
                 this.RECEIVEDSIZE+=data.byteLength;
@@ -197,7 +199,6 @@ export default class PDPeer {
             // this.dataBuffer = Buffer.concat([this.dataBuffer, data]);
             // this.currentReceiveProgress = (this.dataBuffer.byteLength / this.receiveInfo.info.size) * 100;
             this.currentReceiveProgress = (this.RECEIVEDSIZE / this.receiveInfo.info.size) * 100;
-            console.log(this.RECEIVEDSIZE)
             if (this.callBacks.receiveProgressChange !== null) {
                 this.callBacks.receiveProgressChange(this.currentReceiveProgress);
             }
