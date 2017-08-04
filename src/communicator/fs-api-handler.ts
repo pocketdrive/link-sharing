@@ -6,10 +6,12 @@ import * as _ from 'lodash';
 export default class FSAPIHandler {
 
     fs: any = null;
+    fileWriter: any = null;
     fileInfo;
     dataBuffer;
     bufferWatcher;
     bufferWatcherStarted;
+    recivedSofar = 0;
 
     constructor(fileInfo) {
         this.fileInfo = fileInfo;
@@ -20,11 +22,23 @@ export default class FSAPIHandler {
         window['requestFileSystem']('TEMPORARY', this.fileInfo.info.size, (fs) => {
             this.fs = fs;
             console.log('Opened ' + fs.name);
-            this._initSequence();
+            this.fs.root.getFile(this.fileInfo.data.fileName, {create: false}, (fileEntry) => {
+
+                // Create a FileWriter object for our FileEntry.
+                fileEntry.createWriter((fileWriter) => {
+                    this.fileWriter = fileWriter;
+                }, (error) => {
+                    console.log('Error', error)
+                });
+
+            }, (error) => {
+                console.log('Error', error)
+            });
         }, (e) => {
-            // console.log(e);
+            console.log(e);
         });
 
+        this._initSequence();
     }
 
     async _initSequence() {
@@ -37,47 +51,39 @@ export default class FSAPIHandler {
     }
 
     async _createFile() {
-        this.fs.root.getFile(this.fileInfo.data.fileName, {create: true, exclusive: true}, (fileEntry) => {
-        }, (error) => {
-            console.log('Error', error)
+        return new Promise((resolve) => {
+            // this.fs.root.getFile(this.fileInfo.data.fileName, {create: true, exclusive: true}, (fileEntry) => {
+            //     console.log(fileEntry);
+                resolve()
+            // }, (error) => {
+            //     console.log('Error', error)
+            // });
         });
     }
 
-    _appendToFile(data) {
-        if(!this.bufferWatcher) {
-            this._initateBufferWatcher();
+    appendToFile(data) {
+        if (!this.bufferWatcher) {
+            this._initiateBufferWatcher();
         }
         this.dataBuffer.push(data);
     }
 
     _flushBufferToFile(dataChunk) {
-            dataChunk = '1234567';
-            this.fs.root.getFile(this.fileInfo.data.fileName, {create: false}, (fileEntry) => {
+        // dataChunk = '1234567';
+        this.recivedSofar+= dataChunk.byteLength;
+        console.log('received data: ', this.recivedSofar)
 
-                // Create a FileWriter object for our FileEntry.
-                fileEntry.createWriter((fileWriter) => {
+        this.fileWriter.seek(this.fileWriter.length); // Start write position at EOF.
 
-                    fileWriter.seek(fileWriter.length); // Start write position at EOF.
+        // Create a new Blob and write it to the file.
+        let blob = new Blob([dataChunk], {type: 'application/octet-stream'});
 
-                    // Create a new Blob and write it to the file.
-                    var blob = new Blob([dataChunk], {type: 'application/octet-stream'});
-
-                    fileWriter.write(blob);
-
-
-                }, (error) => {
-                    console.log('Error', error)
-                });
-
-            }, (error) => {
-                console.log('Error', error)
-            });
-
+        this.fileWriter.write(blob);
 
     }
 
 
-    _initateBufferWatcher() {
+    _initiateBufferWatcher() {
         this.bufferWatcherStarted = true;
         let bufferedItem;
         this.bufferWatcher = setInterval(() => {
@@ -89,15 +95,15 @@ export default class FSAPIHandler {
 
     }
 
-    _readFile(){
-        this.fs.root.getFile(this.fileInfo.data.fileName, {}, (fileEntry)=> {
+    readFile() {
+        this.fs.root.getFile(this.fileInfo.data.fileName, {}, (fileEntry) => {
 
             // Get a File object representing the file,
             // then use FileReader to read its contents.
-            fileEntry.file((file)=> {
+            fileEntry.file((file) => {
                 var reader = new FileReader();
 
-                reader.onloadend = function(e) {
+                reader.onloadend = function (e) {
                     console.log(this.result);
 
                 };
@@ -112,7 +118,7 @@ export default class FSAPIHandler {
         let attempts = 0;
         return await new Promise((resolve) => {
             let int = setInterval(() => {
-                if (this.fs !== null) {
+                if (this.fileWriter !== null) {
                     resolve(true);
                 } else if (attempts === 10) {
                     resolve(false);
