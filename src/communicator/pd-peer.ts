@@ -177,23 +177,18 @@ export default class PDPeer {
             let obj = JSON.parse(data);
             if (obj.sof) {
                 this.receiveInfo = {info: obj.info, type: obj.type, data: obj.data};
-                this.dataBuffer = new Buffer(0)
-                this.RECEIVEDSIZE=0;
+                this.dataBuffer = new Buffer(0);
             } else if (obj.eof) {
                 this.currentReceiveProgress = 0;
                 this.callBacks.onMessage(this.dataBuffer, this.receiveInfo);
             } else {
-                // this.currentReceiveProgress = (this.dataBuffer.byteLength / this.receiveInfo.info.size) * 100;
-                this.RECEIVEDSIZE+=data.byteLength;
                 this.dataBuffer = Buffer.concat([this.dataBuffer, data]);
-                this.currentReceiveProgress = (this.RECEIVEDSIZE / this.receiveInfo.info.size) * 100;
+                this.currentReceiveProgress = (this.dataBuffer.byteLength / this.receiveInfo.info.size) * 100;
             }
         } else {
-            this.RECEIVEDSIZE+=data.byteLength;
-            // this.dataBuffer = Buffer.concat([this.dataBuffer, data]);
-            // this.currentReceiveProgress = (this.dataBuffer.byteLength / this.receiveInfo.info.size) * 100;
-            this.currentReceiveProgress = (this.RECEIVEDSIZE / this.receiveInfo.info.size) * 100;
-            console.log(this.currentReceiveProgress)
+            this.dataBuffer = Buffer.concat([this.dataBuffer, data]);
+            this.currentReceiveProgress = (this.dataBuffer.byteLength / this.receiveInfo.info.size) * 100;
+
             if (this.callBacks.receiveProgressChange !== null) {
                 this.callBacks.receiveProgressChange(this.currentReceiveProgress);
             }
