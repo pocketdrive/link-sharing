@@ -1,7 +1,9 @@
 import { Component, OnInit, NgZone } from '@angular/core';
 import * as _ from 'lodash';
+import { createWriteStream, supported, version } from 'StreamSaver';
 
 import { Communicator } from '../communicator/communicator';
+
 
 @Component({
     selector: 'app-root',
@@ -27,6 +29,7 @@ export class AppComponent implements OnInit {
         this.communicator = new Communicator(params[0], params[1]);
         this.communicator.registerOnServer();
         let connectionStatus = await this.waitForP2PConnection();
+
         if (connectionStatus) {
             this.loading = false;
             const pd = this.communicator.getPeerObject();
@@ -35,9 +38,8 @@ export class AppComponent implements OnInit {
                 username: params[0],
                 fileId: params[2]
             };
-            pd.receiveBuffer(this.handlePeerMessage());
             pd.sendBuffer(new Buffer(JSON.stringify(message)), 'json');
-            pd.getCurrentReceiveProgress(this.updateDownloadBar());
+            pd.on('progress', this.updateDownloadBar());
             this.updateUI();
         } else {
             console.log('P2P connection timed out');
@@ -55,7 +57,7 @@ export class AppComponent implements OnInit {
     updateDownloadBar() {
         const localThis = this;
 
-        return function (progress) {
+        return (progress) => {
             if (_.isNumber(progress)) {
                 localThis.percentage = Math.round(progress);
             }
@@ -69,19 +71,6 @@ export class AppComponent implements OnInit {
                 clearInterval(this.interval);
             }
         }, 1000);
-    }
-
-    handlePeerMessage() {
-        const localThis = this;
-
-        // Performing context binding for the callback
-        return function (messageBuffer, messageInfo) {
-            if (messageInfo.type === 'file') {
-                localThis._downloadBlob(messageBuffer, messageInfo.data.fileName, 'application/octet-stream');
-            } else if (messageInfo.type === 'json') {
-                console.log('' + messageBuffer.toString());
-            }
-        }
     }
 
     async waitForP2PConnection() {
@@ -114,6 +103,7 @@ export class AppComponent implements OnInit {
     };
 
     _downloadURL(data, fileName) {
+        console.log(data);
         let a;
 
         a = document.createElement('a');

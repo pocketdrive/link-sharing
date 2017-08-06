@@ -14,6 +14,10 @@ export class Communicator {
     pdPeer: PDPeer = null;
     username: string = `user-${uuid().toString()}`;
     deviceId: string = `dev-id-${uuid().toString()}`;
+    callbacks = {
+        peerConnected: null,
+        peerDisconnected: null
+    };
 
     constructor(private targetUsername, private targetDeviceId) {
         this.ws = new $WebSocket(`ws://${centralServer}:${centralServerWSPort}`);
@@ -38,6 +42,11 @@ export class Communicator {
                 break;
             case wsm.acceptOffer:
                 this.signalSelfPeer(obj.answer);
+                break;
+            case wsm.connectionOffer:
+                if (!obj.success) {
+                    console.log('Peer connection failed', obj);
+                }
                 break;
         }
     }
@@ -85,6 +94,10 @@ export class Communicator {
         this.ws.send(msg);
     }
 
+    on(event: 'peerConnected' | 'peerDisconnect', callback: Function) {
+        this.callbacks[event] = callback;
+    }
+
     isConnectedP2P() {
         return this.pdPeer && this.pdPeer.isConnected();
     }
@@ -92,4 +105,5 @@ export class Communicator {
     getPeerObject() {
         return this.pdPeer;
     }
+
 }

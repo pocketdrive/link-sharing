@@ -2,7 +2,9 @@
  * Created by anuradhawick on 8/1/17.
  */
 import * as  SimplePeer  from 'simple-peer';
-import * as _ from 'lodash';
+import { createWriteStream, supported, version } from 'StreamSaver';
+
+declare const streamSaver: any;
 
 const options = {
     initiator: true,
@@ -35,17 +37,20 @@ export default class PDPeer {
     dataBuffer;
     receiveInfo;
     currentReceiveProgress;
-    RECEIVEDSIZE = 0;
+    fileStream;
+    writer;
+    receivedContent;
 
     constructor() {
         this.pingReceived = false;
         this.peerObj = null;
         this.connected = false;
         this.callBacks = {
-            onMessage: null,
-            onDisconnect: null,
-            onSignal: null,
-            receiveProgressChange: null
+            message: null,
+            disconnect: null,
+            signal: null,
+            progress: null,
+            connect: null
         };
         this.signalBuffer = [];
         this.dataBuffer = null;
@@ -82,24 +87,15 @@ export default class PDPeer {
                     this.pingReceived = true;
                 }
                 // pass down the message
-                else if (this.callBacks.onMessage !== null) {
-                    this._receiveDataToBuffer(data, false);
-                }
+                this._receiveDataToBuffer(data, false);
             } catch (e) {
-                if (this.callBacks.onMessage !== null) {
-                    this._receiveDataToBuffer(data, true);
-                }
+                this._receiveDataToBuffer(data, true);
             }
         });
     }
 
-    receiveBuffer(callback) {
-        this.callBacks.onMessage = callback;
-    }
-
-
-    getCurrentReceiveProgress(callback) {
-        this.callBacks.receiveProgressChange = callback;
+    on(event: 'message' | 'disconnect' | 'signal' | 'progress' | 'connect', callback: Function) {
+        this.callBacks[event] = callback;
     }
 
     async sendBuffer(buffer, type = null, data = null) {
@@ -177,21 +173,24 @@ export default class PDPeer {
             let obj = JSON.parse(data);
             if (obj.sof) {
                 this.receiveInfo = {info: obj.info, type: obj.type, data: obj.data};
-                this.dataBuffer = new Buffer(0);
+                this.receivedContent = 0;
+                this.fileStream = streamSaver.createWriteStream(this.receiveInfo.data.fileName, this.receiveInfo.info.size);
+                this.writer = this.fileStream.getWriter();
             } else if (obj.eof) {
+                this.writer.close();
                 this.currentReceiveProgress = 0;
-                this.callBacks.onMessage(this.dataBuffer, this.receiveInfo);
+                this.callBacks.message && this.callBacks.message(this.dataBuffer, this.receiveInfo);
             } else {
-                this.dataBuffer = Buffer.concat([this.dataBuffer, data]);
-                this.currentReceiveProgress = (this.dataBuffer.byteLength / this.receiveInfo.info.size) * 100;
+                this.receivedContent += data.byteLength;
+                this.writer.write(data);
+                this.currentReceiveProgress = (this.receivedContent / this.receiveInfo.info.size) * 100;
             }
         } else {
-            this.dataBuffer = Buffer.concat([this.dataBuffer, data]);
-            this.currentReceiveProgress = (this.dataBuffer.byteLength / this.receiveInfo.info.size) * 100;
+            this.receivedContent += data.byteLength;
+            this.writer.write(data);
+            this.currentReceiveProgress = (this.receivedContent / this.receiveInfo.info.size) * 100;
+            this.callBacks.progress && this.callBacks.progress(this.currentReceiveProgress);
 
-            if (this.callBacks.receiveProgressChange !== null) {
-                this.callBacks.receiveProgressChange(this.currentReceiveProgress);
-            }
         }
     }
 }
