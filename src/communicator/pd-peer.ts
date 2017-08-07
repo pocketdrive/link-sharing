@@ -57,11 +57,6 @@ export default class PDPeer {
         this.receiveInfo = null;
         this.currentReceiveProgress = 0;
 
-        if (!SimplePeer.WEBRTC_SUPPORT) {
-            alert('Please switch to Google Chrome or FireFox. Thank you');
-            return;
-        }
-
         this.peerObj = new SimplePeer(options);
 
         // signal event

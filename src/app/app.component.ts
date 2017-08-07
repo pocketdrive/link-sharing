@@ -1,9 +1,11 @@
 import { Component, OnInit, NgZone } from '@angular/core';
 import * as _ from 'lodash';
+import * as  SimplePeer  from 'simple-peer';
 import { createWriteStream, supported, version } from 'StreamSaver';
 
 import { Communicator } from '../communicator/communicator';
 
+declare const streamSaver: any;
 
 @Component({
     selector: 'app-root',
@@ -26,6 +28,19 @@ export class AppComponent implements OnInit {
     }
 
     async startSequence() {
+        if (!SimplePeer.WEBRTC_SUPPORT) {
+            this.error = 'WebRTC not supported by your browser';
+            this.message = 'Switch to google Chrome or Opera';
+            console.error(this.error);
+            return;
+        }
+        if (!streamSaver.supported) {
+            this.error = 'Streaming not supported by your browser';
+            this.message = 'Switch to google Chrome or Opera';
+            console.error(this.error);
+            return;
+        }
+
         // connect to the WebSocket server
         const params = this.obtainPathParams();
         this.communicator = new Communicator(params[0], params[1]);
@@ -78,6 +93,7 @@ export class AppComponent implements OnInit {
                 case 'error':
                     localThis.error = msgObj.error;
                     localThis.message = msgObj.message;
+                    console.error(this.error, this.message);
                     break;
             }
         }
@@ -98,6 +114,7 @@ export class AppComponent implements OnInit {
         return (msgObj) => {
             localThis.error = msgObj.error;
             localThis.message = msgObj.message;
+            console.error(this.error, this.message);
         }
     }
 
