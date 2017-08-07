@@ -23,6 +23,7 @@
         "@angular/router": "^4.0.0",
         "angular2-websocket": "^0.9.3",
         "core-js": "^2.4.1",
+        "express": "^4.15.4",
         "rxjs": "^5.1.0",
         "simple-peer": "^8.1.1",
         "streamsaver": "^1.0.1",
