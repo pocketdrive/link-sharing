@@ -1,7 +1,9 @@
 import { Component, OnInit, NgZone } from '@angular/core';
+import * as _ from 'lodash';
+import { createWriteStream, supported, version } from 'StreamSaver';
 
 import { Communicator } from '../communicator/communicator';
-import PDPeer from '../communicator/pd-peer';
+
 
 @Component({
     selector: 'app-root',
@@ -9,12 +11,12 @@ import PDPeer from '../communicator/pd-peer';
     styleUrls: ['./app.component.css']
 })
 export class AppComponent implements OnInit {
-    title = 'app';
     communicator: Communicator;
-    currentProgress: Number = 0;
     loading: boolean = true;
     percentage: number = 0;
     interval = null;
+    error: string = null;
+    message: string = null;
 
     constructor(private zone: NgZone) {
     }
@@ -27,8 +29,10 @@ export class AppComponent implements OnInit {
         // connect to the WebSocket server
         const params = this.obtainPathParams();
         this.communicator = new Communicator(params[0], params[1]);
+        this.communicator.on('error', this.handleWsError());
         this.communicator.registerOnServer();
-        let connectionStatus = await this.waitForP2PConnection();
+        const connectionStatus = await this.waitForP2PConnection();
+
         if (connectionStatus) {
             this.loading = false;
             const pd = this.communicator.getPeerObject();
@@ -37,12 +41,10 @@ export class AppComponent implements OnInit {
                 username: params[0],
                 fileId: params[2]
             };
-            pd.receiveBuffer(this.handlePeerMessage());
             pd.sendBuffer(new Buffer(JSON.stringify(message)), 'json');
-            pd.getCurrentReceiveProgress(this.updateDownloadBar());
+            pd.on('progress', this.updateDownloadBar());
+            pd.on('message', this.handleMessage());
             this.updateUI();
-        } else {
-            console.log('P2P connection timed out');
         }
     }
 
@@ -57,30 +59,45 @@ export class AppComponent implements OnInit {
     updateDownloadBar() {
         const localThis = this;
 
-        return function (progress) {
-            localThis.percentage = Math.round(progress);
+        return (progress) => {
+            if (_.isNumber(progress)) {
+                localThis.percentage = Math.round(progress);
+            }
+        }
+    }
+
+    handleMessage() {
+        const localThis = this;
+
+        return (message, info) => {
+            if (info.type !== 'json') return;
+
+            const msgObj = JSON.parse(message);
+
+            switch (msgObj.type) {
+                case 'error':
+                    localThis.error = msgObj.error;
+                    localThis.message = msgObj.message;
+                    break;
+            }
         }
     }
 
     updateUI() {
         this.interval = setInterval(() => {
-            document.getElementById('percentage').innerText = '' + this.percentage;
+            document.getElementById('percentage').innerText = '' + (this.percentage || 0);
             if (this.percentage === 100) {
                 clearInterval(this.interval);
             }
         }, 1000);
     }
 
-    handlePeerMessage() {
+    handleWsError() {
         const localThis = this;
 
-        // Performing context binding for the callback
-        return function (messageBuffer, messageInfo) {
-            if (messageInfo.type === 'file') {
-                console.log('received file', JSON.stringify(messageInfo));
-            } else if (messageInfo.type === 'json') {
-                console.log('' + messageBuffer.toString());
-            }
+        return (msgObj) => {
+            localThis.error = msgObj.error;
+            localThis.message = msgObj.message;
         }
     }
 

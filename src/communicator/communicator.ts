@@ -14,6 +14,9 @@ export class Communicator {
     pdPeer: PDPeer = null;
     username: string = `user-${uuid().toString()}`;
     deviceId: string = `dev-id-${uuid().toString()}`;
+    callbacks = {
+        error: null,
+    };
 
     constructor(private targetUsername, private targetDeviceId) {
         this.ws = new $WebSocket(`ws://${centralServer}:${centralServerWSPort}`);
@@ -38,6 +41,11 @@ export class Communicator {
                 break;
             case wsm.acceptOffer:
                 this.signalSelfPeer(obj.answer);
+                break;
+            case wsm.connectionOffer:
+                if (!obj.success) {
+                    this.callbacks.error && this.callbacks.error(obj);
+                }
                 break;
         }
     }
@@ -81,6 +89,10 @@ export class Communicator {
         );
     }
 
+    on(event: 'error', callback: Function) {
+        this.callbacks[event] = callback;
+    }
+
     _sendMessageToServer(msg: string) {
         this.ws.send(msg);
     }
@@ -92,4 +104,5 @@ export class Communicator {
     getPeerObject() {
         return this.pdPeer;
     }
+
 }
