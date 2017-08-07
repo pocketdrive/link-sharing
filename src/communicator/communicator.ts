@@ -15,8 +15,7 @@ export class Communicator {
     username: string = `user-${uuid().toString()}`;
     deviceId: string = `dev-id-${uuid().toString()}`;
     callbacks = {
-        peerConnected: null,
-        peerDisconnected: null
+        error: null,
     };
 
     constructor(private targetUsername, private targetDeviceId) {
@@ -45,7 +44,7 @@ export class Communicator {
                 break;
             case wsm.connectionOffer:
                 if (!obj.success) {
-                    console.log('Peer connection failed', obj);
+                    this.callbacks.error && this.callbacks.error(obj);
                 }
                 break;
         }
@@ -90,12 +89,12 @@ export class Communicator {
         );
     }
 
-    _sendMessageToServer(msg: string) {
-        this.ws.send(msg);
+    on(event: 'error', callback: Function) {
+        this.callbacks[event] = callback;
     }
 
-    on(event: 'peerConnected' | 'peerDisconnect', callback: Function) {
-        this.callbacks[event] = callback;
+    _sendMessageToServer(msg: string) {
+        this.ws.send(msg);
     }
 
     isConnectedP2P() {

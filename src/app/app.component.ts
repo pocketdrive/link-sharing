@@ -15,6 +15,8 @@ export class AppComponent implements OnInit {
     loading: boolean = true;
     percentage: number = 0;
     interval = null;
+    error: string = null;
+    message: string = null;
 
     constructor(private zone: NgZone) {
     }
@@ -27,8 +29,9 @@ export class AppComponent implements OnInit {
         // connect to the WebSocket server
         const params = this.obtainPathParams();
         this.communicator = new Communicator(params[0], params[1]);
+        this.communicator.on('error', this.handleWsError());
         this.communicator.registerOnServer();
-        let connectionStatus = await this.waitForP2PConnection();
+        const connectionStatus = await this.waitForP2PConnection();
 
         if (connectionStatus) {
             this.loading = false;
@@ -40,9 +43,8 @@ export class AppComponent implements OnInit {
             };
             pd.sendBuffer(new Buffer(JSON.stringify(message)), 'json');
             pd.on('progress', this.updateDownloadBar());
+            pd.on('message', this.handleMessage());
             this.updateUI();
-        } else {
-            console.log('P2P connection timed out');
         }
     }
 
@@ -64,6 +66,23 @@ export class AppComponent implements OnInit {
         }
     }
 
+    handleMessage() {
+        const localThis = this;
+
+        return (message, info) => {
+            if (info.type !== 'json') return;
+
+            const msgObj = JSON.parse(message);
+
+            switch (msgObj.type) {
+                case 'error':
+                    localThis.error = msgObj.error;
+                    localThis.message = msgObj.message;
+                    break;
+            }
+        }
+    }
+
     updateUI() {
         this.interval = setInterval(() => {
             document.getElementById('percentage').innerText = '' + (this.percentage || 0);
@@ -71,6 +90,15 @@ export class AppComponent implements OnInit {
                 clearInterval(this.interval);
             }
         }, 1000);
+    }
+
+    handleWsError() {
+        const localThis = this;
+
+        return (msgObj) => {
+            localThis.error = msgObj.error;
+            localThis.message = msgObj.message;
+        }
     }
 
     async waitForP2PConnection() {
@@ -88,30 +116,4 @@ export class AppComponent implements OnInit {
             }, 1000);
         });
     }
-
-    _downloadBlob(data, fileName, mimeType) {
-        let blob, url;
-
-        blob = new Blob([data], {
-            type: mimeType
-        });
-        url = window.URL.createObjectURL(blob);
-        this._downloadURL(url, fileName);
-        setTimeout(function () {
-            return window.URL.revokeObjectURL(url);
-        }, 1000);
-    };
-
-    _downloadURL(data, fileName) {
-        console.log(data);
-        let a;
-
-        a = document.createElement('a');
-        a.href = data;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.style = 'display: none';
-        a.click();
-        a.remove();
-    };
 }

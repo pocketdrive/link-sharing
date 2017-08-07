@@ -174,20 +174,36 @@ export default class PDPeer {
             if (obj.sof) {
                 this.receiveInfo = {info: obj.info, type: obj.type, data: obj.data};
                 this.receivedContent = 0;
-                this.fileStream = streamSaver.createWriteStream(this.receiveInfo.data.fileName, this.receiveInfo.info.size);
-                this.writer = this.fileStream.getWriter();
+                if (this.receiveInfo.type === 'file') {
+                    this.fileStream = streamSaver.createWriteStream(this.receiveInfo.data.fileName, this.receiveInfo.info.size);
+                    this.writer = this.fileStream.getWriter();
+                } else {
+                    this.dataBuffer = new Buffer(0);
+                }
             } else if (obj.eof) {
-                this.writer.close();
+                if (this.receiveInfo.type === 'file') {
+                    this.writer.close();
+                } else {
+                    this.callBacks.message && this.callBacks.message(this.dataBuffer, this.receiveInfo);
+                }
                 this.currentReceiveProgress = 0;
-                this.callBacks.message && this.callBacks.message(this.dataBuffer, this.receiveInfo);
             } else {
                 this.receivedContent += data.byteLength;
-                this.writer.write(data);
+                if (this.receiveInfo.type === 'file') {
+                    this.writer.write(data);
+                } else {
+                    this.dataBuffer = Buffer.concat([this.dataBuffer, data]);
+                }
                 this.currentReceiveProgress = (this.receivedContent / this.receiveInfo.info.size) * 100;
+                this.callBacks.progress && this.callBacks.progress(this.currentReceiveProgress);
             }
         } else {
             this.receivedContent += data.byteLength;
-            this.writer.write(data);
+            if (this.receiveInfo.type === 'file') {
+                this.writer.write(data);
+            } else {
+                this.dataBuffer = Buffer.concat([this.dataBuffer, data]);
+            }
             this.currentReceiveProgress = (this.receivedContent / this.receiveInfo.info.size) * 100;
             this.callBacks.progress && this.callBacks.progress(this.currentReceiveProgress);
 
