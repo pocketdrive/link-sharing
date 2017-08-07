@@ -2,7 +2,6 @@
  * Created by anuradhawick on 8/1/17.
  */
 import * as  SimplePeer  from 'simple-peer';
-import FSAPIHandler from './fs-api-handler';
 
 const options = {
     initiator: true,
@@ -180,13 +179,13 @@ export default class PDPeer {
                 this.receiveInfo = {info: obj.info, type: obj.type, data: obj.data};
                 this.dataBuffer = new Buffer(0)
                 this.RECEIVEDSIZE=0;
-                this.fileManagerAPIObj = new FSAPIHandler(this.receiveInfo);
+                // this.fileManagerAPIObj = new FSAPIHandler(this.receiveInfo);
                 console.log('creating object')
             } else if (obj.eof) {
                 this.currentReceiveProgress = 0;
                 this.callBacks.onMessage(this.dataBuffer, this.receiveInfo);
-                this.fileManagerAPIObj.appendToFile('end');
-                this.fileManagerAPIObj.readFile();
+                // this.fileManagerAPIObj.appendToFile('end');
+                // this.fileManagerAPIObj.readFile();
             } else {
                 // this.currentReceiveProgress = (this.dataBuffer.byteLength / this.receiveInfo.info.size) * 100;
                 this.RECEIVEDSIZE+=data.byteLength;
@@ -194,7 +193,7 @@ export default class PDPeer {
                 this.currentReceiveProgress = (this.RECEIVEDSIZE / this.receiveInfo.info.size) * 100;
             }
         } else {
-            this.fileManagerAPIObj.appendToFile(data);
+            // this.fileManagerAPIObj.appendToFile(data);
             this.RECEIVEDSIZE+=data.byteLength;
             // this.dataBuffer = Buffer.concat([this.dataBuffer, data]);
             // this.currentReceiveProgress = (this.dataBuffer.byteLength / this.receiveInfo.info.size) * 100;

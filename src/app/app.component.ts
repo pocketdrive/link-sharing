@@ -25,6 +25,7 @@ export class AppComponent implements OnInit {
 
     async startSequence() {
         // connect to the WebSocket server
+
         const params = this.obtainPathParams();
         this.communicator = new Communicator(params[0], params[1]);
         this.communicator.registerOnServer();
