@@ -1,7 +1,6 @@
 import { Component, OnInit, NgZone } from '@angular/core';
 import * as _ from 'lodash';
 import * as  SimplePeer  from 'simple-peer';
-import { createWriteStream, supported, version } from 'StreamSaver';
 
 import { Communicator } from '../communicator/communicator';
 
@@ -17,6 +16,7 @@ export class AppComponent implements OnInit {
     loading: boolean = true;
     percentage: number = 0;
     interval = null;
+    downloadComplete: boolean = false;
     error: string = null;
     message: string = null;
 
@@ -30,13 +30,13 @@ export class AppComponent implements OnInit {
     async startSequence() {
         if (!SimplePeer.WEBRTC_SUPPORT) {
             this.error = 'WebRTC not supported by your browser';
-            this.message = 'Switch to google Chrome or Opera';
+            this.message = 'Unfortunately, this browser does not support our link sharing download feature yet. Please switch to google Chrome or Opera';
             console.error(this.error);
             return;
         }
         if (!streamSaver.supported) {
             this.error = 'Streaming not supported by your browser';
-            this.message = 'Switch to google Chrome or Opera';
+            this.message = 'Unfortunately, this browser does not support our link sharing download feature yet. Please switch to google Chrome or Opera';
             console.error(this.error);
             return;
         }
@@ -103,6 +103,7 @@ export class AppComponent implements OnInit {
         this.interval = setInterval(() => {
             document.getElementById('percentage').innerText = '' + (this.percentage || 0);
             if (this.percentage === 100) {
+                this.downloadComplete = true;
                 clearInterval(this.interval);
             }
         }, 1000);
