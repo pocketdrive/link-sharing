@@ -183,9 +183,7 @@ export default class PDPeer {
                 this.currentReceiveProgress = 0;
             } else {
                 this.receivedContent += data.byteLength;
-                if (this.receiveInfo.type === 'file') {
-                    this.writer.write(data);
-                } else {
+                if (this.receiveInfo.type !== 'file') {
                     this.dataBuffer = Buffer.concat([this.dataBuffer, data]);
                 }
                 this.currentReceiveProgress = (this.receivedContent / this.receiveInfo.info.size) * 100;
