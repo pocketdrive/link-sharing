@@ -71,6 +71,7 @@ export default class PDPeer {
 
 
         this.peerObj.on('end', () => {
+            this.callBacks.message && this.callBacks.message();
             console.log('ended')
         });
 
