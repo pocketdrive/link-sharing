@@ -1,9 +1,8 @@
-import {Component, OnInit, NgZone} from '@angular/core';
+import { Component, OnInit, NgZone } from '@angular/core';
 import * as _ from 'lodash';
-import * as  SimplePeer from 'simple-peer';
-import {createWriteStream, supported, version} from 'StreamSaver';
+import * as  SimplePeer  from 'simple-peer';
 
-import {Communicator} from '../communicator/communicator';
+import { Communicator } from '../communicator/communicator';
 
 declare const streamSaver: any;
 
