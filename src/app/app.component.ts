@@ -72,8 +72,19 @@ export class AppComponent implements OnInit {
             pd.sendBuffer(new Buffer(JSON.stringify(message)), 'json');
             pd.on('progress', this.updateDownloadBar());
             pd.on('message', this.handleMessage());
+            pd.on('disconnect', this.handleDisconnectError());
             this.updateUI();
         }
+    }
+
+    handleDisconnectError() {
+        const localThis = this;
+
+        return () => {
+            localThis.error = "Peer connection dropped";
+            localThis.message = "You are disconnected. Please check your internet connection and check whether host is online";
+        }
+
     }
 
     obtainPathParams() {
