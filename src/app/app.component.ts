@@ -1,4 +1,5 @@
-import { Component, OnInit, NgZone } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
+import { Router, ActivatedRoute, Params } from '@angular/router';
 import * as _ from 'lodash';
 import * as  SimplePeer  from 'simple-peer';
 
@@ -20,14 +21,23 @@ export class AppComponent implements OnInit {
     error: string = null;
     message: string = null;
 
-    constructor(private zone: NgZone) {
+    constructor(private activatedRoute: ActivatedRoute) {
+
     }
 
     ngOnInit() {
-        this.startSequence();
+        const mode = this.getParameterByName('mode') ? 'fileOpen' : 'linkShare';
+        const isMultiPath = !!this.getParameterByName('multi');
+        this.startSequence(mode, isMultiPath);
     }
 
-    async startSequence() {
+    getParameterByName(name: string) {
+        const searchParams = new URLSearchParams(window.location.search);
+
+        return searchParams.get(name) || null;
+    }
+
+    async startSequence(mode, isMultiPath) {
         if (!SimplePeer.WEBRTC_SUPPORT) {
             this.error = 'WebRTC not supported by your browser';
             this.message = 'Unfortunately, this browser does not support our link sharing download feature yet. Please switch to google Chrome or Opera';
@@ -53,7 +63,10 @@ export class AppComponent implements OnInit {
             const pd = this.communicator.getPeerObject();
             const message = {
                 type: 'linkShare',
+                mode: mode,
                 username: params[0],
+                isMultiPath: isMultiPath,
+                path: isMultiPath ? JSON.parse(this.getParameterByName('path')) : this.getParameterByName('path'),
                 fileId: params[2]
             };
             pd.sendBuffer(new Buffer(JSON.stringify(message)), 'json');
@@ -64,9 +77,10 @@ export class AppComponent implements OnInit {
     }
 
     obtainPathParams() {
-        const origin = window.location.origin;
-        let url = window.location.href;
-        url = url.replace(origin, '').replace('/', '');
+        let url = window.location.pathname;
+        if (url[0] === '/') {
+            url = url.slice(1);
+        }
         url = url.trim();
         return url.split('/');
     }
