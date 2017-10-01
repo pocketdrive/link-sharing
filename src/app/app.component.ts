@@ -110,7 +110,16 @@ export class AppComponent implements OnInit {
         const localThis = this;
 
         return (message, info) => {
-            if (info.type !== 'json') return;
+            if (info.type == 'file') {
+                const a = document.createElement('a');
+                const blobVal = new window.Blob(message);
+
+                a.download = info.data.fileName;
+                a.href = URL.createObjectURL(blobVal);
+
+                a.click();
+                return;
+            }
 
             const msgObj = JSON.parse(message);
 
@@ -126,7 +135,11 @@ export class AppComponent implements OnInit {
 
     updateUI() {
         this.interval = setInterval(() => {
-            document.getElementById('percentage').innerText = '' + (this.percentage || 0);
+            try {
+                document.getElementById('percentage').innerText = '' + (this.percentage || 0);
+            } catch(e) {
+                clearInterval(this.interval);
+            }
             if (this.percentage === 100) {
                 this.downloadComplete = true;
                 clearInterval(this.interval);

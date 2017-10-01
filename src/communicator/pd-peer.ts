@@ -28,6 +28,8 @@ const options = {
     objectMode: false
 };
 
+let receiveBuffer = [];
+
 export default class PDPeer {
     pingReceived;
     peerObj;
@@ -71,7 +73,12 @@ export default class PDPeer {
 
 
         this.peerObj.on('end', () => {
-            this.callBacks.message && this.callBacks.message();
+            this.callBacks.message && this.callBacks.message(
+                JSON.stringify({
+                    type: 'error',
+                    error: 'Connection failure',
+                    message: 'Connection failed, Please try again later!'
+                }), {type: 'error'});
             console.log('ended')
         });
 
@@ -171,13 +178,15 @@ export default class PDPeer {
                 this.receiveInfo = {info: obj.info, type: obj.type, data: obj.data};
                 this.receivedContent = 0;
                 if (this.receiveInfo.type === 'file') {
-                    this.fileStream = streamSaver.createWriteStream(this.receiveInfo.data.fileName, this.receiveInfo.info.size);
-                    this.writer = this.fileStream.getWriter();
+                    // this.fileStream = streamSaver.createWriteStream(this.receiveInfo.data.fileName, this.receiveInfo.info.size);
+                    // this.writer = this.fileStream.getWriter();
                 } else {
                     this.dataBuffer = new Buffer(0);
                 }
             } else if (obj.eof) {
                 if (this.receiveInfo.type === 'file') {
+                    console.log('DONE RECEIVING FILE')
+                    this.callBacks.message && this.callBacks.message(receiveBuffer, this.receiveInfo);
                     this.writer.close();
                 } else {
                     this.callBacks.message && this.callBacks.message(this.dataBuffer, this.receiveInfo);
@@ -194,7 +203,8 @@ export default class PDPeer {
         } else {
             this.receivedContent += data.byteLength;
             if (this.receiveInfo.type === 'file') {
-                this.writer.write(data);
+                // this.writer.write(data);
+                receiveBuffer.push(data)
             } else {
                 this.dataBuffer = Buffer.concat([this.dataBuffer, data]);
             }
