@@ -20,13 +20,24 @@ export class AppComponent implements OnInit {
     downloadComplete: boolean = false;
     error: string = null;
     message: string = null;
+    fileName: string = '';
+    file: Uint8Array = null;
+    mode: string = 'download';
+    enableUpload: boolean = false;
+    uploadInProgress: boolean = false;
 
     constructor(private activatedRoute: ActivatedRoute) {
 
     }
 
     ngOnInit() {
-        const mode = this.getParameterByName('mode') ? 'fileOpen' : 'linkShare';
+        // models are fileOpen | linkShare | upload
+        const mode = this.getParameterByName('mode') || 'linkShare';
+
+        if (mode === 'upload') {
+            this.mode = 'upload';
+        }
+
         const isMultiPath = !!this.getParameterByName('multi');
         this.startSequence(mode, isMultiPath);
     }
@@ -40,13 +51,7 @@ export class AppComponent implements OnInit {
     async startSequence(mode, isMultiPath) {
         if (!SimplePeer.WEBRTC_SUPPORT) {
             this.error = 'WebRTC not supported by your browser';
-            this.message = 'Unfortunately, this browser does not support our link sharing download feature yet. Please switch to google Chrome or Opera';
-            console.error(this.error);
-            return;
-        }
-        if (!streamSaver.supported) {
-            this.error = 'Streaming not supported by your browser';
-            this.message = 'Unfortunately, this browser does not support our link sharing download feature yet. Please switch to google Chrome or Opera';
+            this.message = 'Unfortunately, this browser does not support our link sharing download feature yet. Please switch to google Chrome, Firefox or Opera';
             console.error(this.error);
             return;
         }
@@ -60,20 +65,30 @@ export class AppComponent implements OnInit {
 
         if (connectionStatus) {
             this.loading = false;
-            const pd = this.communicator.getPeerObject();
-            const message = {
-                type: 'linkShare',
-                mode: mode,
-                username: params[0],
-                isMultiPath: isMultiPath,
-                path: isMultiPath ? JSON.parse(this.getParameterByName('path')) : this.getParameterByName('path'),
-                fileId: params[2]
-            };
-            pd.sendBuffer(new Buffer(JSON.stringify(message)), 'json');
-            pd.on('progress', this.updateDownloadBar());
-            pd.on('message', this.handleMessage());
-            pd.on('disconnect', this.handleDisconnectError());
-            this.updateUI();
+
+            switch (this.mode) {
+                case 'download':
+                    const pd = this.communicator.getPeerObject();
+                    const message = {
+                        type: 'linkShare',
+                        mode: mode,
+                        username: params[0],
+                        isMultiPath: isMultiPath,
+                        path: isMultiPath ? JSON.parse(this.getParameterByName('path')) : this.getParameterByName('path'),
+                        fileId: params[2]
+                    };
+
+                    console.log('CONNECTED');
+                    pd.sendBuffer(new Buffer(JSON.stringify(message)), 'json');
+                    pd.on('progress', this.updateDownloadBar());
+                    pd.on('message', this.handleMessage());
+                    pd.on('disconnect', this.handleDisconnectError());
+                    this.updateUI();
+                    break;
+                case 'upload':
+                    this.enableUpload = true;
+                    break;
+            }
         }
     }
 
@@ -81,8 +96,8 @@ export class AppComponent implements OnInit {
         const localThis = this;
 
         return () => {
-            localThis.error = "Peer connection dropped";
-            localThis.message = "You are disconnected. Please check your internet connection and check whether host is online";
+            localThis.error = 'Peer connection dropped';
+            localThis.message = 'You are disconnected. Please check your internet connection and check whether host is online';
         }
 
     }
@@ -137,7 +152,7 @@ export class AppComponent implements OnInit {
         this.interval = setInterval(() => {
             try {
                 document.getElementById('percentage').innerText = '' + (this.percentage || 0);
-            } catch(e) {
+            } catch (e) {
                 clearInterval(this.interval);
             }
             if (this.percentage === 100) {
@@ -171,5 +186,34 @@ export class AppComponent implements OnInit {
                 attempts++;
             }, 1000);
         });
+    }
+
+    fileChangeEvent(fileInput: any) {
+        if (fileInput.target.files && fileInput.target.files[0]) {
+            const reader = new FileReader();
+
+            reader.onload = (e: any) => {
+                const result: Uint8Array = new Uint8Array(e.target.result);
+                this.fileName = fileInput.target.files[0].name;
+                this.file = result;
+            };
+
+            reader.readAsArrayBuffer(fileInput.target.files[0]);
+        }
+    }
+
+    startUpload() {
+        if (!_.isEmpty(this.fileName) && !_.isEmpty(this.file)) {
+            this.enableUpload = false;
+            this.uploadInProgress = true;
+            this.updateUI();
+
+            const pd = this.communicator.getPeerObject();
+            const params = this.obtainPathParams();
+
+            pd.on('sendProgress', this.updateDownloadBar());
+            pd.on('disconnect', this.handleDisconnectError());
+            pd.sendBuffer(this.file, 'file', {username: params[0], path: this.getParameterByName('path'), filename: this.fileName});
+        }
     }
 }

@@ -42,6 +42,7 @@ export default class PDPeer {
     fileStream;
     writer;
     receivedContent;
+    currentSendProgress;
 
     constructor() {
         this.pingReceived = false;
@@ -57,6 +58,7 @@ export default class PDPeer {
         this.signalBuffer = [];
         this.dataBuffer = null;
         this.receiveInfo = null;
+        this.currentSendProgress = 0;
         this.currentReceiveProgress = 0;
 
         this.peerObj = new SimplePeer(options);
@@ -97,7 +99,7 @@ export default class PDPeer {
         });
     }
 
-    on(event: 'message' | 'disconnect' | 'signal' | 'progress' | 'connect', callback: Function) {
+    on(event: 'message' | 'disconnect' | 'signal' | 'progress' | 'connect' | 'sendProgress', callback: Function) {
         this.callBacks[event] = callback;
     }
 
@@ -125,6 +127,9 @@ export default class PDPeer {
                 await this._waitForPing();
                 i = 0;
             }
+            this.currentSendProgress = (1 - file.byteLength / metaObj.info.size) * 100;
+            console.log(this.currentSendProgress)
+            this.callBacks.sendProgress && this.callBacks.sendProgress(this.currentSendProgress);
         }
         metaObj.eof = true;
         metaObj.sof = false;
